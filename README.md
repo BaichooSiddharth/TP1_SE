@@ -165,7 +165,7 @@ Donc:
 - `r3(echo a)` appelle trois fois `echo a`.
 - `r3(echo a) && agkeag || echo c` appelle trois fois `echo a`, puis imprime le message d'erreur pour `agkeag`, puis appelle `echo c`
 - `r3(echo a) && echo b || echo c` appelle trois fois `echo a`, puis appelle `echo b`, puis arrête.
-- `echo a && r400(agkeag) || echo c` appelle trois fois `echo a`, 
+- `echo a && r400(agkeag) || echo c` appelle `echo a`, 
   puis imprime 400 fois le message d'erreur pour `agkeag`, puis appelle `echo c`
 
 Vous pouvez voir rN comme étant une suite de && entre N commandes.
