@@ -34,7 +34,7 @@ void freeStringArray(char **arr) {  //todo probably add this to free the "call" 
             free(arr[i]);
         }
     }
-    free(arr);
+    free(arr); 
 }
 
 error_code readline(char **out) {   //todo this is pretty barebones, you must complete it
