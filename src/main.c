@@ -15,11 +15,11 @@ typedef int error_code;
 #define HAS_ERROR(code) ((code) < 0)
 #define NULL_TERMINATOR '\0'
 
-enum op {   //todo these are your custom shell operators. You might want to use them to represent &&, ||, & and "no operator"
+enum op {   //todo custom shell operators. might want to use them to represent &&, ||, & and "no operator"
     BIDON, NONE, OR, AND, ALSO    //BIDON is just to make NONE=1, BIDON is unused
 };
 
-struct command {    //todo you might want to use this to represent the different commands you find on a line
+struct command {    //todo might want to use this to represent commands found on line
     char **call;
     enum op operator;
     struct command *next;
@@ -37,33 +37,66 @@ void freeStringArray(char **arr) {  //todo probably add this to free the "call" 
     free(arr); 
 }
 
-error_code readline(char **out) {   //todo this is pretty barebones, you must complete it
-    size_t size = 10;                       // size of the char array
+error_code readline(char **out) {
+    size_t size = 2;                       // size of the char array
     char *line = malloc(sizeof(char) * size);       // initialize a ten-char line
-    if (line == NULL) return ERROR;   // if we can't, terminate because of a memory issue
+    if (line == NULL)
+        return ERROR;   // if we can't, terminate because of a memory issue
 
-    for (int at = 0; 6; at++) { //todo 10 is clearly too small, make this bigger
-        char ch = getchar(); // todo this is bad form, fix this
-        if (ch == '\n') {        // if we get a newline
-            line[at] = NULL_TERMINATOR;    // finish the line with return 0
-            break;
-        }
+    char ch;
+    int at = 0;
+
+    while ((ch = (char) getchar()) != '\n') {
         line[at] = ch; // sets ch at the current index and increments the index
+        ++at;
+        if (at >= size) {
+            size *= 2;
+            line = realloc(line, sizeof(char) * size);
+        }
     }
 
+    line[at] = NULL_TERMINATOR;    // finish the line with return 0
     out[0] = line;
     return 0;
 }
 
-int main (void) {
-    //todo
-    char *line;
-    readline(&line);    //todo what about error_code?
-    if(strcmp(line, "exit") == 0) {
-        free(line);
-        exit(0);
-    }
-    while (true);
+int execute(char *line, char **args) {
+    char *arg0 = line;
+    char *arg1 = NULL;
+    args[0] = arg0;
+    args[1] = arg1;
 
-    //todo probably add other functions for different parts of the homework...
+    do execvp(line, args);
+    while (strcmp(line, "exit") != 0);
+
+    return 0;
+}
+
+error_code parseLine(char *line) {
+
+    // 1. parcourir la ligne, caractère par caractère
+    // 2. printer les mots 1 à la fois
+    // 3. mettre chaque mot dans la struct
+    // 4. comme c'est une liste chainée, retourner le 1er élément
+
+    printf("%s\n", line);
+    return 0;
+}
+
+int main (void) {
+    char *line;
+    char **args = malloc(sizeof(char *) * 3);
+
+    // reads line
+    if (HAS_ERROR(readline(&line)))
+        return ERROR;
+
+    parseLine(line);
+
+    // executes line
+    execute(line, args);
+
+    free(line);
+    free(args);
+    return 0;
 }
