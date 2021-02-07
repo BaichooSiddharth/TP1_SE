@@ -114,7 +114,7 @@ void freeStringArray(char **arr) {
 }
 
 error_code readline(char **out) {
-    size_t size = 2;                       // size of the char array
+    size_t size = 8;                       // size of the char array
     char *line = malloc(sizeof(char) * size);       // initialize a ten-char line
     if (line == NULL)
         return ERROR; // TODO: don't return error on empty input
@@ -160,6 +160,7 @@ char **parseWords(char *line, int *numWords) {
     }
     words[j] = NULL;
     *numWords = j;
+
     return words;
 }
 
@@ -182,6 +183,11 @@ struct command *parseLine(char *line) {
     for (int i = 0; i < numWords; i++) {
         w = words[i];
         symbol = whichOp(w);
+
+        if (symbol == BIDON) {
+            currentCall[j] = w;
+            ++j;
+        }
         if (symbol != BIDON || i == numWords - 1) {
             nextNode = new_node(currentCall, symbol, j, symbol == ALSO);
             if (!currentNode) {
@@ -193,26 +199,31 @@ struct command *parseLine(char *line) {
             }
             j = 0;
             currentCall = malloc(sizeof(char*) * numWords);
-        } else {
-            currentCall[j] = w;
-            ++j;
         }
     }
     return firstNode;
 }
 
-int execute(struct command *firstNode) {
+int runLine(struct command *firstNode) {
 //    if (firstNode->count == 0)
 //        return 0;
 
-    printCommands(firstNode);
+    //printCommands(firstNode);
 
-    pid_t pid = fork();
+
+
+    pid_t pid;
+
+    // while(head): check le résultat du précédent call.
+    // en fonction du exit code, run ou ne run pas le || ou le &&
+    // pis si &, run en background.
+
+    pid = fork();
     if (pid == 0) {
         char *file = *firstNode->call;
         error_code e = execvp(file, firstNode->call);
         printf("encountered error %i\n", e);
-        //exit(0);
+        exit(0);
     } else
         wait(&pid);
 
@@ -226,7 +237,7 @@ int main (void) {
     // executes line
     while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
         commandFirstNode = parseLine(line);
-        execute(commandFirstNode);
+        runLine(commandFirstNode);
     }
     free(line);
     exit(0);
