@@ -19,16 +19,92 @@ enum op {   //todo custom shell operators. might want to use them to represent &
     BIDON, NONE, OR, AND, ALSO    //BIDON is just to make NONE=1, BIDON is unused
 };
 
-struct command {    //todo might want to use this to represent commands found on line
+enum op whichOp(char *symbol) {
+    enum op result;
+    if (symbol == NULL)
+        result = NONE;
+    else if (strcmp(symbol, "&&") == 0)
+        result = AND;
+    else if (strcmp(symbol, "||") == 0)
+        result = OR;
+    else if (strcmp(symbol, "&") == 0)
+        result = ALSO;
+    else
+        result = BIDON;
+    return result;
+}
+
+// echo a && ls -a -l && pwd
+
+// commands = {cm1, cm2}
+// cmd1:
+    // call = {"echo", "a"}
+    // operator = "&&"
+    // next = cmd2
+    // count = 2
+    // also = ????
+// cmd2
+    // call = {"ls", "-a", "-l"}
+    // operator = NULL
+    // next = NULL
+    // count = 3
+    // also = ???
+
+
+struct command {
     char **call;
     enum op operator;
     struct command *next;
     int count;
     bool also;
 };
-//hint hint: this looks suspiciously similar to a linked list we saw in the demo. I wonder if I could use the same ideas here??
 
-void freeStringArray(char **arr) {  //todo probably add this to free the "call" parameter inside of command
+struct command *new_node(char** n_call, enum op n_op, int n_count, bool n_also) {
+    struct command *node = malloc(sizeof(struct command));
+    node->call = n_call;
+    node->operator = n_op;
+    node->count = n_count;
+    node->also = n_also;
+    node->next = NULL; //bonne pratique!
+    return node;
+}
+
+struct command *free_node(struct command *node) {
+    struct command *next = node->next;
+    free(node);
+    return next;
+}
+
+void printCommands(struct command *head) {
+    printf("PRINTING COMMAND%c", '\n');
+    int i;
+    char **curCall;
+    const char *enumNames[] = {"BIDON", "NONE", "OR", "AND", "ALSO"};
+
+    while (head != NULL) {
+        curCall = head->call;
+        i = 0;
+        printf("%i words in call: \n", head->count);
+        while(i < head->count)
+            printf("%s\n", curCall[i++]);
+        printf("end of first command%c", '\n');
+
+        printf("ENUM: %s\n", enumNames[head->operator]);
+        printf("ALSO: %i\n", head->also);
+        head = head->next;
+    }
+}
+
+void free_l_list(struct command *head) {
+    while (head != NULL) {
+        struct command *next = head->next;
+        free(head);
+        head = next;
+    }
+}
+
+
+void freeStringArray(char **arr) {
     if (arr != NULL) {
         for (int i = 0; arr[i] != NULL; i++) {
             free(arr[i]);
@@ -41,7 +117,7 @@ error_code readline(char **out) {
     size_t size = 2;                       // size of the char array
     char *line = malloc(sizeof(char) * size);       // initialize a ten-char line
     if (line == NULL)
-        return ERROR;   // if we can't, terminate because of a memory issue
+        return ERROR; // TODO: don't return error on empty input
 
     char ch;
     int at = 0;
@@ -60,43 +136,98 @@ error_code readline(char **out) {
     return 0;
 }
 
-int execute(char *line, char **args) {
-    char *arg0 = line;
-    char *arg1 = NULL;
-    args[0] = arg0;
-    args[1] = arg1;
+char **parseWords(char *line, int *numWords) {
+    int len = (int) strlen(line);
+    char **words = malloc(sizeof(char*) * len + 1);
+    char *word = malloc(sizeof(char) * len + 1);
+    char cur;
+    int j = 0;
+    int k = 0;
 
-    do execvp(line, args);
-    while (strcmp(line, "exit") != 0);
-
-    return 0;
+    for (int i = 0; i <= len; i++) {
+        cur = line[i];
+        if (cur == ' ' || cur == '\0') {
+            if (strlen(word) > 0) {
+                words[j] = word;
+                ++j;
+                word = malloc(sizeof(char) * len + 1);
+                k = 0;
+            }
+        } else {
+            word[k] = cur;
+            ++k;
+        }
+    }
+    words[j] = NULL;
+    *numWords = j;
+    return words;
 }
 
-error_code parseLine(char *line) {
-
-    // 1. parcourir la ligne, caractère par caractère
-    // 2. printer les mots 1 à la fois
-    // 3. mettre chaque mot dans la struct
+struct command *parseLine(char *line) {
+    // 3. mettre chaque mot dans la struct command
     // 4. comme c'est une liste chainée, retourner le 1er élément
+    int numWords;
+    char **words = parseWords(line, &numWords);
 
-    printf("%s\n", line);
+    char **currentCall = malloc(sizeof(char*) * numWords);
+    int j = 0;
+    char *w = malloc(sizeof(char) * numWords);
+    enum op symbol;
+    struct command *currentNode = NULL;
+    struct command *firstNode;
+    struct command *nextNode;
+
+    // i is the current word index in words
+    // j is the current word index in currentCall
+    for (int i = 0; i < numWords; i++) {
+        w = words[i];
+        symbol = whichOp(w);
+        if (symbol != BIDON || i == numWords - 1) {
+            nextNode = new_node(currentCall, symbol, j, symbol == ALSO);
+            if (!currentNode) {
+                currentNode = nextNode;
+                firstNode = currentNode;
+            } else {
+                currentNode->next = nextNode;
+                currentNode = nextNode;
+            }
+            j = 0;
+            currentCall = malloc(sizeof(char*) * numWords);
+        } else {
+            currentCall[j] = w;
+            ++j;
+        }
+    }
+    return firstNode;
+}
+
+int execute(struct command *firstNode) {
+//    if (firstNode->count == 0)
+//        return 0;
+
+    printCommands(firstNode);
+
+    pid_t pid = fork();
+    if (pid == 0) {
+        char *file = *firstNode->call;
+        error_code e = execvp(file, firstNode->call);
+        printf("encountered error %i\n", e);
+        //exit(0);
+    } else
+        wait(&pid);
+
     return 0;
 }
 
 int main (void) {
     char *line;
-    char **args = malloc(sizeof(char *) * 3);
-
-    // reads line
-    if (HAS_ERROR(readline(&line)))
-        return ERROR;
-
-    parseLine(line);
+    struct command *commandFirstNode;
 
     // executes line
-    execute(line, args);
-
+    while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
+        commandFirstNode = parseLine(line);
+        execute(commandFirstNode);
+    }
     free(line);
-    free(args);
-    return 0;
+    exit(0);
 }
