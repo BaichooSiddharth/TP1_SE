@@ -204,15 +204,12 @@ struct command *parseLine(char *line) {
     return firstNode;
 }
 
-int runLine(struct command *firstNode) {
-//    if (firstNode->count == 0)
-//        return 0;
+int runNode(struct command *head) {
 
-    //printCommands(firstNode);
-
-
+    // todo: ALSO doit être le même sur toute la ligne.
 
     pid_t pid;
+    int status;
 
     // while(head): check le résultat du précédent call.
     // en fonction du exit code, run ou ne run pas le || ou le &&
@@ -220,24 +217,34 @@ int runLine(struct command *firstNode) {
 
     pid = fork();
     if (pid == 0) {
-        char *file = *firstNode->call;
-        error_code e = execvp(file, firstNode->call);
+        char *file = *head->call;
+        error_code e = execvp(file, head->call);
         printf("encountered error %i\n", e);
         exit(0);
     } else
-        wait(&pid);
+        waitpid(pid, &status, 0);
 
-    return 0;
+    if (!HAS_ERROR(status))
+        while (head && head->operator != AND)
+            head = head->next;
+    else
+        while (head && head->operator != OR)
+            head = head->next;
+
+    if (!head || !head->next)
+        return 0;
+    else
+        runNode(head->next);
 }
 
 int main (void) {
     char *line;
     struct command *commandFirstNode;
 
-    // executes line
+    // executes lines until exit
     while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
         commandFirstNode = parseLine(line);
-        runLine(commandFirstNode);
+        runNode(commandFirstNode);
     }
     free(line);
     exit(0);
