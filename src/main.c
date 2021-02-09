@@ -87,6 +87,7 @@ void freeStringArray(char **arr) {
 }
 
 void free_node_list(struct command *head) {
+    int i = 0;
     while (head != NULL) {
         struct command *next = head->next;
         if (head->call)
@@ -135,8 +136,8 @@ char **parseWords(char *line, int *numWords) {
                 words[j] = word;
                 ++j;
                 if (cur != NULL_TERMINATOR) {
-                    printf("%i\n", i);
                     word = malloc(sizeof(char) * (len + 1));
+                    word[0] = NULL_TERMINATOR;
                 }
                 k = 0;
             }
@@ -157,7 +158,6 @@ struct command *parseLine(char *line) {
     char **currentCall = malloc(sizeof(char*) * (numWords + 1));
     if (!currentCall)
         exit(0);
-    printf("numWords: %i\n", numWords);
     setNullStrings(&currentCall, numWords);
 
     int j = 0;
@@ -197,6 +197,8 @@ struct command *parseLine(char *line) {
                 setNullStrings(&currentCall, numWords);
             }
         }
+        if (symbol != BIDON)
+            free(w);
     }
     free(words);
     return firstNode;
@@ -211,8 +213,8 @@ int runNode(struct command *head) {
     if (pid == 0) {
         char *file = *head->call;
         error_code e = execvp(file, head->call);
+        freeStringArray(head->call);
         printf("encountered error %i\n", e);
-//        free_node_list(head);
         exit(e);
     } else
         waitpid(pid, &status, 0);
