@@ -57,12 +57,6 @@ struct command *new_node(char** n_call, enum op n_op, int n_count, bool n_also) 
     return node;
 }
 
-//struct command *free_node(struct command *node) {
-//    struct command *next = node->next;
-//    free(node);
-//    return next;
-//}
-
 void printCommands(struct command *head) {
     printf("PRINTING COMMAND%c", '\n');
     int i;
@@ -212,10 +206,6 @@ int runNode(struct command *head) {
 
     pid_t pid;
     int status;
-
-    // while(head): check le résultat du précédent call.
-    // en fonction du exit code, run ou ne run pas le || ou le &&
-    // pis si &, run en background.
 
     pid = fork();
     if (pid == 0) {
