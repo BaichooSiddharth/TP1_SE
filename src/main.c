@@ -20,9 +20,8 @@ enum op {   //todo custom shell operators. might want to use them to represent &
 };
 
 void setNullStrings(char ***ptr, int n) {
-    char *nullCharPtr = NULL;
     for (int i = 0; i < n; i++)
-        ptr[0][i] = nullCharPtr;
+        ptr[0][i] = NULL;
 }
 
 enum op whichOp(char *symbol) {
@@ -128,8 +127,8 @@ error_code readline(char **out) {
 
 char **parseWords(char *line, int *numWords) {
     int len = (int) strlen(line);
-    char **words = malloc(sizeof(char*) * len + 1);
-    char *word = malloc(sizeof(char) * len + 1);
+    char **words = malloc(sizeof(char*) * (len + 1));
+    char *word = malloc(sizeof(char) * (len + 1));
     char cur;
     int j = 0;
     int k = 0;
@@ -141,9 +140,10 @@ char **parseWords(char *line, int *numWords) {
                 word[k] = NULL_TERMINATOR;
                 words[j] = word;
                 ++j;
-//                printf("k: %i\n", k);
-                if (cur != NULL_TERMINATOR)
-                    word = malloc(sizeof(char) * len + 1);
+                if (cur != NULL_TERMINATOR) {
+                    printf("%i\n", i);
+                    word = malloc(sizeof(char) * (len + 1));
+                }
                 k = 0;
             }
         } else {
@@ -160,9 +160,10 @@ char **parseWords(char *line, int *numWords) {
 struct command *parseLine(char *line) {
     int numWords;
     char **words = parseWords(line, &numWords);
-    char **currentCall = malloc(sizeof(char*) * numWords + 1);
+    char **currentCall = malloc(sizeof(char*) * (numWords + 1));
     if (!currentCall)
         exit(0);
+    printf("numWords: %i\n", numWords);
     setNullStrings(&currentCall, numWords);
 
     int j = 0;
@@ -184,6 +185,7 @@ struct command *parseLine(char *line) {
             ++j;
         }
         if (symbol != BIDON || i == numWords - 1) { //word is a symbol or end of line
+            currentCall[j] = NULL;
             nextNode = new_node(currentCall, symbol, j, symbol == ALSO);
 
             if (!currentNode) { // current node is first node
@@ -195,7 +197,7 @@ struct command *parseLine(char *line) {
             }
             j = 0;
             if (i != numWords - 1) {
-                currentCall = malloc(sizeof(char *) * numWords + 1);
+                currentCall = malloc(sizeof(char *) * (numWords + 1));
                 if (!currentCall)
                     exit(0);
                 setNullStrings(&currentCall, numWords);
@@ -218,18 +220,9 @@ int runNode(struct command *head) {
     pid = fork();
     if (pid == 0) {
         char *file = *head->call;
-//        int i = 0;
-//        while (head->call[i] != NULL) {
-//            printf("%s\n", head->call[i]);
-//            ++i;
-//            if (head->call[i] == NULL)
-//                printf("%s\n", "reached the NULL!");
-//        }
-//        printf("%s\n", "done");
-//        fflush(stdout);
-//        head->call = realloc(head->call, sizeof(char *) * i);
         error_code e = execvp(file, head->call);
         printf("encountered error %i\n", e);
+//        free_node_list(head);
         exit(e);
     } else
         waitpid(pid, &status, 0);
