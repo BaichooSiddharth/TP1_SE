@@ -34,23 +34,6 @@ enum op whichOp(char *symbol) {
     return result;
 }
 
-// echo a && ls -a -l && pwd
-
-// commands = {cm1, cm2}
-// cmd1:
-    // call = {"echo", "a"}
-    // operator = "&&"
-    // next = cmd2
-    // count = 2
-    // also = ????
-// cmd2
-    // call = {"ls", "-a", "-l"}
-    // operator = NULL
-    // next = NULL
-    // count = 3
-    // also = ???
-
-
 struct command {
     char **call;
     enum op operator;
@@ -69,11 +52,11 @@ struct command *new_node(char** n_call, enum op n_op, int n_count, bool n_also) 
     return node;
 }
 
-struct command *free_node(struct command *node) {
-    struct command *next = node->next;
-    free(node);
-    return next;
-}
+//struct command *free_node(struct command *node) {
+//    struct command *next = node->next;
+//    free(node);
+//    return next;
+//}
 
 void printCommands(struct command *head) {
     printf("PRINTING COMMAND%c", '\n');
@@ -95,15 +78,6 @@ void printCommands(struct command *head) {
     }
 }
 
-void free_l_list(struct command *head) {
-    while (head != NULL) {
-        struct command *next = head->next;
-        free(head);
-        head = next;
-    }
-}
-
-
 void freeStringArray(char **arr) {
     if (arr != NULL) {
         for (int i = 0; arr[i] != NULL; i++) {
@@ -111,6 +85,15 @@ void freeStringArray(char **arr) {
         }
     }
     free(arr); 
+}
+
+void free_node_list(struct command *head) {
+    while (head != NULL) {
+        struct command *next = head->next;
+        freeStringArray(head->call);
+        free(head);
+        head = next;
+    }
 }
 
 error_code readline(char **out) {
@@ -150,7 +133,8 @@ char **parseWords(char *line, int *numWords) {
             if (strlen(word) > 0) {
                 words[j] = word;
                 ++j;
-                word = malloc(sizeof(char) * len + 1);
+                if (cur != '\0')
+                    word = malloc(sizeof(char) * len + 1);
                 k = 0;
             }
         } else {
@@ -165,15 +149,13 @@ char **parseWords(char *line, int *numWords) {
 }
 
 struct command *parseLine(char *line) {
-    // 3. mettre chaque mot dans la struct command
-    // 4. comme c'est une liste chainée, retourner le 1er élément
     int numWords;
     char **words = parseWords(line, &numWords);
-
-    char **currentCall = malloc(sizeof(char*) * numWords);
+    char **currentCall = malloc(sizeof(char*) * numWords + 1);
     int j = 0;
-    char *w = malloc(sizeof(char) * numWords);
+    char *w;
     enum op symbol;
+
     struct command *currentNode = NULL;
     struct command *firstNode;
     struct command *nextNode;
@@ -184,13 +166,15 @@ struct command *parseLine(char *line) {
         w = words[i];
         symbol = whichOp(w);
 
-        if (symbol == BIDON) {
+        if (symbol == BIDON) { // word is not a symbol
             currentCall[j] = w;
             ++j;
         }
-        if (symbol != BIDON || i == numWords - 1) {
+        if (symbol != BIDON || i == numWords - 1) { //word is a symbol or end of line
+//            currentCall[j]=NULL;
             nextNode = new_node(currentCall, symbol, j, symbol == ALSO);
-            if (!currentNode) {
+
+            if (!currentNode) { // current node is first node
                 currentNode = nextNode;
                 firstNode = currentNode;
             } else {
@@ -198,15 +182,15 @@ struct command *parseLine(char *line) {
                 currentNode = nextNode;
             }
             j = 0;
-            currentCall = malloc(sizeof(char*) * numWords);
+            if (i != numWords - 1)
+                currentCall = malloc(sizeof(char*) * numWords + 1);
         }
     }
+    free(words);
     return firstNode;
 }
 
 int runNode(struct command *head) {
-
-    // todo: ALSO doit être le même sur toute la ligne.
 
     pid_t pid;
     int status;
@@ -220,32 +204,58 @@ int runNode(struct command *head) {
         char *file = *head->call;
         error_code e = execvp(file, head->call);
         printf("encountered error %i\n", e);
-        exit(0);
+        exit(e);
     } else
         waitpid(pid, &status, 0);
+//    printf("the status is: %i\n", status);
 
-    if (!HAS_ERROR(status))
+    if (status == 0)
         while (head && head->operator != AND)
             head = head->next;
     else
         while (head && head->operator != OR)
             head = head->next;
 
-    if (!head || !head->next)
+    if (!head || !head->next) {
+        status = 0;
         return 0;
+    }
     else
         runNode(head->next);
+}
+
+bool checkIfLastAlso(struct command *node){
+    if (node->next == NULL)
+        return node->also;
+    else
+        return checkIfLastAlso(node->next);
 }
 
 int main (void) {
     char *line;
     struct command *commandFirstNode;
 
+    pid_t pid;
+    bool also;
+
     // executes lines until exit
     while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
         commandFirstNode = parseLine(line);
-        runNode(commandFirstNode);
+        also = checkIfLastAlso(commandFirstNode);
+
+        if (also) {
+            pid = fork();
+            if (pid == 0) {
+                runNode(commandFirstNode);
+                free_node_list(commandFirstNode);
+                free(line);
+                exit(0);
+            }
+        } else {
+            runNode(commandFirstNode);
+            free_node_list(commandFirstNode);
+            free(line);
+        }
     }
-    free(line);
     exit(0);
 }
