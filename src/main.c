@@ -198,9 +198,12 @@ int check_rN(char **call, int numWords) {
 
     lastWord[iLast] = '\0';
 
-    for (int j = 0; j <= iLast; j++){
-        call[0][j] = call[0][j + i];
+    int j = 0;
+    char cur;
+    while((cur = call[0][j + i]) != '\0' && cur != ' ') {
+        call[0][j++] = cur;
     }
+    call[0][j] = NULL_TERMINATOR;
 
     return rN;
 
