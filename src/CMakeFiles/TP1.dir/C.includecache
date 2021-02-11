@@ -1,0 +1,22 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+/home/thalux/Desktop/tp1-muscular-mongoose/src/main.c
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+memory.h
+-
+fcntl.h
+-
+sys/wait.h
+-
+
