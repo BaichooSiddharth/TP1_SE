@@ -5,8 +5,6 @@
 #include <fcntl.h>
 #include <sys/wait.h>
 
-#define true 1
-#define false 0
 #define bool int
 
 typedef int error_code;
@@ -43,42 +41,42 @@ struct command {
     char **call;
     enum op operator;
     struct command *next;
-    int count;
+//    int count;
     bool also;
     int rTimes;
 };
 
 struct command *new_node(char** n_call, enum op n_op,
-        int n_count, bool n_also, int rTimes) {
+        /*int n_count,*/ bool n_also, int rTimes) {
     struct command *node = malloc(sizeof(struct command));
     node->call = n_call;
     node->operator = n_op;
-    node->count = n_count;
+//    node->count = n_count;
     node->also = n_also;
     node->next = NULL; //bonne pratique!
     node->rTimes = rTimes;
     return node;
 }
 
-void printCommands(struct command *head) {
-    printf("PRINTING COMMAND%c", '\n');
-    int i;
-    char **curCall;
-    const char *enumNames[] = {"BIDON", "NONE", "OR", "AND", "ALSO"};
-
-    while (head != NULL) {
-        curCall = head->call;
-        i = 0;
-        printf("%i words in call: \n", head->count);
-        while(i < head->count)
-            printf("%s\n", curCall[i++]);
-        printf("end of first command%c", '\n');
-
-        printf("ENUM: %s\n", enumNames[head->operator]);
-        printf("ALSO: %i\n", head->also);
-        head = head->next;
-    }
-}
+//void printCommands(struct command *head) {
+//    printf("PRINTING COMMAND%c", '\n');
+//    int i;
+//    char **curCall;
+//    const char *enumNames[] = {"BIDON", "NONE", "OR", "AND", "ALSO"};
+//
+//    while (head != NULL) {
+//        curCall = head->call;
+//        i = 0;
+//        printf("%i words in call: \n", head->count);
+//        while(i < head->count)
+//            printf("%s\n", curCall[i++]);
+//        printf("end of first command%c", '\n');
+//
+//        printf("ENUM: %s\n", enumNames[head->operator]);
+//        printf("ALSO: %i\n", head->also);
+//        head = head->next;
+//    }
+//}
 
 void freeStringArray(char **arr) {
     //if (arr != NULL) {
@@ -90,7 +88,6 @@ void freeStringArray(char **arr) {
 }
 
 void free_node_list(struct command *head) {
-    int i = 0;
     while (head != NULL) {
         struct command *next = head->next;
         if (head->call)
@@ -248,7 +245,7 @@ struct command *parseLine(char *line) {
             currentCall[j] = NULL;
 
             int rn = check_rN(currentCall, j);
-            nextNode = new_node(currentCall, symbol, j, symbol == ALSO, rn);
+            nextNode = new_node(currentCall, symbol, /*j,*/ symbol == ALSO, rn);
 
             if (!currentNode) { // current node is first node
                 currentNode = nextNode;
