@@ -110,6 +110,11 @@ error_code readline(char **out) {
     char ch;
     int at = 0;
 
+    // trim spaces at left side of input
+    while ((ch = (char) getchar()) == ' ')
+        ;
+    line[at++] = ch;
+
     while ((ch = (char) getchar()) != '\n') {
         line[at] = ch; // sets ch at the current index and increments the index
         ++at;
@@ -122,6 +127,10 @@ error_code readline(char **out) {
             }
         }
     }
+
+    // trim spaces at right side of input
+    while (line[at - 1] == ' ')
+        --at;
 
     line[at] = NULL_TERMINATOR;    // finish the line with return 0
     out[0] = line;
