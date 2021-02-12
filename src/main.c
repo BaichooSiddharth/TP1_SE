@@ -15,7 +15,7 @@ typedef int error_code;
 #define HAS_ERROR(code) ((code) < 0)
 #define NULL_TERMINATOR '\0'
 
-enum op {   //todo custom shell operators. might want to use them to represent &&, ||, & and "no operator"
+enum op {
     BIDON, NONE, OR, AND, ALSO    //BIDON is just to make NONE=1, BIDON is unused
 };
 
@@ -269,6 +269,7 @@ struct command *parseLine(char *line) {
             free(w);
     }
     free(words);
+    free(line);
     return firstNode;
 }
 
@@ -331,13 +332,11 @@ int main (void) {
             if (pid == 0) {
                 runNode(commandFirstNode);
                 free_node_list(commandFirstNode);
-                free(line);
                 exit(0);
             }
         } else {
             runNode(commandFirstNode);
             free_node_list(commandFirstNode);
-            free(line);
         }
     }
     exit(0);
