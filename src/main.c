@@ -273,8 +273,9 @@ int runNode(struct command *head) {
         if (pid == 0) {
             char *file = *head->call;
             error_code e = execvp(file, head->call);
+            if (e == -1)
+                printf("%s: command not found\n", head->call[0]);
             freeStringArray(head->call);
-            printf("encountered error %i\n", e);
             exit(e);
         } else
             waitpid(pid, &status, 0);
