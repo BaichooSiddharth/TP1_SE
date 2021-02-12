@@ -19,6 +19,11 @@ enum op {   //todo custom shell operators. might want to use them to represent &
     BIDON, NONE, OR, AND, ALSO    //BIDON is just to make NONE=1, BIDON is unused
 };
 
+void setNullStrings(char ***ptr, int n) {
+    for (int i = 0; i < n; i++)
+        ptr[0][i] = NULL;
+}
+
 enum op whichOp(char *symbol) {
     enum op result;
     if (symbol == NULL)
@@ -40,22 +45,19 @@ struct command {
     struct command *next;
     int count;
     bool also;
+    int rTimes;
 };
 
-struct command *new_node(char** n_call, enum op n_op, int n_count, bool n_also) {
+struct command *new_node(char** n_call, enum op n_op,
+        int n_count, bool n_also, int rTimes) {
     struct command *node = malloc(sizeof(struct command));
     node->call = n_call;
     node->operator = n_op;
     node->count = n_count;
     node->also = n_also;
     node->next = NULL; //bonne pratique!
+    node->rTimes = rTimes;
     return node;
-}
-
-struct command *free_node(struct command *node) {
-    struct command *next = node->next;
-    free(node);
-    return next;
 }
 
 void printCommands(struct command *head) {
@@ -78,29 +80,32 @@ void printCommands(struct command *head) {
     }
 }
 
-void free_l_list(struct command *head) {
-    while (head != NULL) {
-        struct command *next = head->next;
-        free(head);
-        head = next;
-    }
-}
-
-
 void freeStringArray(char **arr) {
-    if (arr != NULL) {
+    //if (arr != NULL) {
         for (int i = 0; arr[i] != NULL; i++) {
             free(arr[i]);
         }
-    }
+    //}
     free(arr); 
+}
+
+void free_node_list(struct command *head) {
+    int i = 0;
+    while (head != NULL) {
+        struct command *next = head->next;
+        if (head->call)
+            freeStringArray(head->call);
+        free(head);
+        head = next;
+    }
 }
 
 error_code readline(char **out) {
     size_t size = 8;                       // size of the char array
     char *line = malloc(sizeof(char) * size);       // initialize a ten-char line
     if (line == NULL)
-        return ERROR; // TODO: don't return error on empty input
+        return ERROR;
+    line[0] = '\0';
 
     char ch;
     int at = 0;
@@ -111,6 +116,10 @@ error_code readline(char **out) {
         if (at >= size) {
             size *= 2;
             line = realloc(line, sizeof(char) * size);
+            if (!line) {
+                printf("failed%c", '\n');
+                exit(0);
+            }
         }
     }
 
@@ -121,8 +130,8 @@ error_code readline(char **out) {
 
 char **parseWords(char *line, int *numWords) {
     int len = (int) strlen(line);
-    char **words = malloc(sizeof(char*) * len + 1);
-    char *word = malloc(sizeof(char) * len + 1);
+    char **words = malloc(sizeof(char*) * (len + 1));
+    char *word = malloc(sizeof(char) * (len + 1));
     char cur;
     int j = 0;
     int k = 0;
@@ -131,9 +140,13 @@ char **parseWords(char *line, int *numWords) {
         cur = line[i];
         if (cur == ' ' || cur == '\0') {
             if (strlen(word) > 0) {
+                word[k] = NULL_TERMINATOR;
                 words[j] = word;
                 ++j;
-                word = malloc(sizeof(char) * len + 1);
+                if (cur != NULL_TERMINATOR) {
+                    word = malloc(sizeof(char) * (len + 1));
+                    word[0] = NULL_TERMINATOR;
+                }
                 k = 0;
             }
         } else {
@@ -147,16 +160,64 @@ char **parseWords(char *line, int *numWords) {
     return words;
 }
 
+bool isDigit(char c) {
+    return c == '0' ||
+    c == '1' ||
+    c == '2' ||
+    c == '3' ||
+    c == '4' ||
+    c == '5' ||
+    c == '6' ||
+    c == '7' ||
+    c == '8' ||
+    c == '9';
+}
+
+int check_rN(char **call, int numWords) {
+    char *first = *call;
+    int rN = 0;
+    int i = 1;
+
+    if (first[0] != 'r')
+        return 1;
+    else {
+        char cur;
+        while ((cur = first[i++]) != '(') {
+            if (isDigit(cur)) {
+                rN *= 10;
+                rN += (int) cur - 48;
+            } else
+                return 1;
+        }
+    }
+    char *lastWord = call[numWords - 1];
+    int iLast = strlen(lastWord) - 1;
+    char lastChar = lastWord[iLast];
+    if (lastChar != ')')
+        return 1;
+
+    lastWord[iLast] = '\0';
+
+    for (int j = 0; j <= iLast; j++){
+        call[0][j] = call[0][j + i];
+    }
+
+    return rN;
+
+}
+
 struct command *parseLine(char *line) {
-    // 3. mettre chaque mot dans la struct command
-    // 4. comme c'est une liste chainée, retourner le 1er élément
     int numWords;
     char **words = parseWords(line, &numWords);
+    char **currentCall = malloc(sizeof(char*) * (numWords + 1));
+    if (!currentCall)
+        exit(0);
+    setNullStrings(&currentCall, numWords);
 
-    char **currentCall = malloc(sizeof(char*) * numWords);
     int j = 0;
-    char *w = malloc(sizeof(char) * numWords);
+    char *w;
     enum op symbol;
+
     struct command *currentNode = NULL;
     struct command *firstNode;
     struct command *nextNode;
@@ -167,13 +228,17 @@ struct command *parseLine(char *line) {
         w = words[i];
         symbol = whichOp(w);
 
-        if (symbol == BIDON) {
+        if (symbol == BIDON) { // word is not a symbol
             currentCall[j] = w;
             ++j;
         }
-        if (symbol != BIDON || i == numWords - 1) {
-            nextNode = new_node(currentCall, symbol, j, symbol == ALSO);
-            if (!currentNode) {
+        if (symbol != BIDON || i == numWords - 1) { //word is a symbol or end of line
+            currentCall[j] = NULL;
+
+            int rn = check_rN(currentCall, j);
+            nextNode = new_node(currentCall, symbol, j, symbol == ALSO, rn);
+
+            if (!currentNode) { // current node is first node
                 currentNode = nextNode;
                 firstNode = currentNode;
             } else {
@@ -181,44 +246,86 @@ struct command *parseLine(char *line) {
                 currentNode = nextNode;
             }
             j = 0;
-            currentCall = malloc(sizeof(char*) * numWords);
+            if (i != numWords - 1) {
+                currentCall = malloc(sizeof(char *) * (numWords + 1));
+                if (!currentCall)
+                    exit(0);
+                setNullStrings(&currentCall, numWords);
+            }
         }
+        if (symbol != BIDON)
+            free(w);
     }
+    free(words);
     return firstNode;
 }
 
-int runLine(struct command *firstNode) {
-//    if (firstNode->count == 0)
-//        return 0;
+int runNode(struct command *head) {
 
     pid_t pid;
+    int status;
 
-    // while(head): check le résultat du précédent call.
-    // en fonction du exit code, run ou ne run pas le || ou le &&
-    // pis si &, run en background.
+    for (int i = 0; i < head->rTimes; i++) {
+        pid = fork();
+        if (pid == 0) {
+            char *file = *head->call;
+            error_code e = execvp(file, head->call);
+            freeStringArray(head->call);
+            printf("encountered error %i\n", e);
+            exit(e);
+        } else
+            waitpid(pid, &status, 0);
+    }
 
-    pid = fork();
-    if (pid == 0) {
-        char *file = *firstNode->call;
-        error_code e = execvp(file, firstNode->call);
-        if (e == -1)
-            printf("%s: command not found\n", firstNode->call[0]);
-        exit(0);
-    } else
-        wait(&pid);
+    if (status == 0)
+        while (head && head->operator != AND)
+            head = head->next;
+    else
+        while (head && head->operator != OR)
+            head = head->next;
 
-    return 0;
+    if (!head || !head->next) {
+        status = 0;
+        return 0;
+    }
+    else
+        runNode(head->next);
+
+    return 0; // will ne run
+}
+
+bool checkIfLastAlso(struct command *node){
+    if (node->next == NULL)
+        return node->also;
+    else
+        return checkIfLastAlso(node->next);
 }
 
 int main (void) {
     char *line;
     struct command *commandFirstNode;
 
-    // executes line
+    pid_t pid;
+    bool also;
+
+    // executes lines until exit
     while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
         commandFirstNode = parseLine(line);
-        runLine(commandFirstNode);
+        also = checkIfLastAlso(commandFirstNode);
+
+        if (also) {
+            pid = fork();
+            if (pid == 0) {
+                runNode(commandFirstNode);
+                free_node_list(commandFirstNode);
+                free(line);
+                exit(0);
+            }
+        } else {
+            runNode(commandFirstNode);
+            free_node_list(commandFirstNode);
+            free(line);
+        }
     }
-    free(line);
     exit(0);
 }
