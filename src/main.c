@@ -2,7 +2,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <memory.h>
-#include <fcntl.h>
 #include <sys/wait.h>
 
 #define bool int
@@ -197,7 +196,7 @@ int check_rN(char **call, int numWords) {
         }
     }
     char *lastWord = call[numWords - 1];
-    int iLast = strlen(lastWord) - 1;
+    unsigned long iLast = strlen(lastWord) - 1;
     char lastChar = lastWord[iLast];
     if (lastChar != ')')
         return 1;
@@ -303,7 +302,7 @@ int runNode(struct command *head) {
     else
         runNode(head->next);
 
-    return 0; // will ne run
+    return 0; // will never run
 }
 
 bool checkIfLastAlso(struct command *node){
