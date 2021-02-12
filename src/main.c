@@ -34,23 +34,6 @@ enum op whichOp(char *symbol) {
     return result;
 }
 
-// echo a && ls -a -l && pwd
-
-// commands = {cm1, cm2}
-// cmd1:
-    // call = {"echo", "a"}
-    // operator = "&&"
-    // next = cmd2
-    // count = 2
-    // also = ????
-// cmd2
-    // call = {"ls", "-a", "-l"}
-    // operator = NULL
-    // next = NULL
-    // count = 3
-    // also = ???
-
-
 struct command {
     char **call;
     enum op operator;
@@ -208,10 +191,6 @@ int runLine(struct command *firstNode) {
 //    if (firstNode->count == 0)
 //        return 0;
 
-    //printCommands(firstNode);
-
-
-
     pid_t pid;
 
     // while(head): check le résultat du précédent call.
@@ -222,7 +201,8 @@ int runLine(struct command *firstNode) {
     if (pid == 0) {
         char *file = *firstNode->call;
         error_code e = execvp(file, firstNode->call);
-        printf("encountered error %i\n", e);
+        if (e == -1)
+            printf("%s: command not found\n", firstNode->call[0]);
         exit(0);
     } else
         wait(&pid);
