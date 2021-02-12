@@ -41,42 +41,42 @@ struct command {
     char **call;
     enum op operator;
     struct command *next;
-//    int count;
+    int count;
     bool also;
     int rTimes;
 };
 
 struct command *new_node(char** n_call, enum op n_op,
-        /*int n_count,*/ bool n_also, int rTimes) {
+        int n_count, bool n_also, int rTimes) {
     struct command *node = malloc(sizeof(struct command));
     node->call = n_call;
     node->operator = n_op;
-//    node->count = n_count;
+    node->count = n_count;
     node->also = n_also;
     node->next = NULL; //bonne pratique!
     node->rTimes = rTimes;
     return node;
 }
 
-//void printCommands(struct command *head) {
-//    printf("PRINTING COMMAND%c", '\n');
-//    int i;
-//    char **curCall;
-//    const char *enumNames[] = {"BIDON", "NONE", "OR", "AND", "ALSO"};
-//
-//    while (head != NULL) {
-//        curCall = head->call;
-//        i = 0;
-//        printf("%i words in call: \n", head->count);
-//        while(i < head->count)
-//            printf("%s\n", curCall[i++]);
-//        printf("end of first command%c", '\n');
-//
-//        printf("ENUM: %s\n", enumNames[head->operator]);
-//        printf("ALSO: %i\n", head->also);
-//        head = head->next;
-//    }
-//}
+void printCommands(struct command *head) {
+    printf("PRINTING COMMAND%c", '\n');
+    int i;
+    char **curCall;
+    const char *enumNames[] = {"BIDON", "NONE", "OR", "AND", "ALSO"};
+
+    while (head != NULL) {
+        curCall = head->call;
+        i = 0;
+        printf("%i words in call: \n", head->count);
+        while(i < head->count)
+            printf("%s\n", curCall[i++]);
+        printf("end of first command%c", '\n');
+
+        printf("ENUM: %s\n", enumNames[head->operator]);
+        printf("ALSO: %i\n", head->also);
+        head = head->next;
+    }
+}
 
 void freeStringArray(char **arr) {
     //if (arr != NULL) {
@@ -108,7 +108,7 @@ error_code readline(char **out) {
     int at = 0;
 
     // trim spaces at left side of input
-    while ((ch = (char) getchar()) == ' ')
+    while ((ch = (char) getchar()) == ' ' || ch == '\n')
         ;
     line[at++] = ch;
 
@@ -245,7 +245,7 @@ struct command *parseLine(char *line) {
             currentCall[j] = NULL;
 
             int rn = check_rN(currentCall, j);
-            nextNode = new_node(currentCall, symbol, /*j,*/ symbol == ALSO, rn);
+            nextNode = new_node(currentCall, symbol, j, symbol == ALSO, rn);
 
             if (!currentNode) { // current node is first node
                 currentNode = nextNode;
@@ -272,6 +272,7 @@ struct command *parseLine(char *line) {
 
 int runNode(struct command *head) {
 
+    //printCommands(head);
     pid_t pid;
     int status;
 
@@ -321,6 +322,7 @@ int main (void) {
 
     // executes lines until exit
     while (!HAS_ERROR(readline(&line)) && strcmp(line, "exit") != 0) {
+
         commandFirstNode = parseLine(line);
         also = checkIfLastAlso(commandFirstNode);
 
@@ -333,8 +335,8 @@ int main (void) {
             }
         } else {
             runNode(commandFirstNode);
-            free_node_list(commandFirstNode);
         }
+        free_node_list(commandFirstNode);
     }
     exit(0);
 }
