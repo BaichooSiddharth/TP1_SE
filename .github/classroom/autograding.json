@@ -2,7 +2,7 @@
   "tests": [
     {
       "name": "All of the tests",
-      "setup": "",
+      "setup": "sudo apt-get install valgrind",
       "run": "cd test && make alltests",
       "input": "",
       "output": "",
