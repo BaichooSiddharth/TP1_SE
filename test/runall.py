@@ -35,8 +35,11 @@ def run(input):
     except Exception as e:
         program_output = e.output
 
-    with open("./valgrind.log", "r") as f:
-        valgrind_output = f.read()
+    try:
+        with open("./valgrind.log", "r") as f:
+            valgrind_output = f.read()
+    except:
+        valgrind_output = "definitely lost: 9\n\n"
 
     return program_output, valgrind_output
 
@@ -47,6 +50,7 @@ points = perfect_score.copy()
 failed = 0
 valgrind_output = ""
 for test_case, inout in tests_yaml.items():
+    brekpaint = 0
     for input, output in zip(inout["in"], inout["out"]):
         with directory("tests_build"):
             program_output, valgrind = run(input)
