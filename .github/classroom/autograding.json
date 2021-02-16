@@ -1,0 +1,14 @@
+{
+  "tests": [
+    {
+      "name": "All of the tests",
+      "setup": "",
+      "run": "cd test && make alltests",
+      "input": "",
+      "output": "",
+      "comparison": "included",
+      "timeout": 4,
+      "points": null
+    }
+  ]
+}
